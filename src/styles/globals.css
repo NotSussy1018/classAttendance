@@ -1,0 +1,31 @@
+/**
+ * Global Styles
+ * Tailwind CSS v4 글로벌 스타일
+ */
+
+@import "tailwindcss";
+
+/* 커스텀 글로벌 스타일 */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-500;
+  }
+
+  button {
+    @apply transition-colors duration-200;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply transition-colors duration-200;
+  }
+}

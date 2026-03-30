@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(/tmp/dependency_check.md:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm list:*)",
+      "Bash(firebase emulators:start --project=demo)",
+      "Bash(node local-server.js)",
+      "Bash(ls -la /Users/seojun/Projects/SchoolAttendanceTracker/*.json)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -s -X GET \"http://localhost:3000/api/student?action=getClassStudents&schoolId=school-001&classId=class-001\" -H \"Origin: http://localhost:5173\" -H \"Content-Type: application/json\" -v)",
+      "Bash(netstat -tuln)",
+      "Bash(curl -s -X GET \"http://localhost:3000/api/student?action=getClassStudents\" -w \"\\\\n\\\\nStatus: %{http_code}\\\\n\")",
+      "Bash(lsof -ti:3000)",
+      "Bash(xargs kill:*)",
+      "Bash(curl -s \"http://localhost:3000/api/student?action=getClassStudents&schoolId=school-001&classId=class-001\")",
+      "Bash(curl -s -i \"http://localhost:3000/api/student?action=getClassStudents\")",
+      "Bash(curl -s \"http://localhost:3000/api/timeslot?action=getTimeSlots&schoolId=school-001&classId=class-001\")",
+      "Bash(git init:*)",
+      "Bash(git remote:*)",
+      "Bash(git config:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"Initial commit: School Attendance Tracker - Frontend and Backend Implementation:*)"
+    ]
+  }
+}

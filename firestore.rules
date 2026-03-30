@@ -1,0 +1,150 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==================== Helper Functions ====================
+
+    // 현재 사용자가 인증되어 있는지 확인
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 현재 사용자의 데이터 조회
+    function getCurrentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // 사용자의 역할 확인
+    function hasRole(role) {
+      return isAuthenticated() && getCurrentUser().role == role;
+    }
+
+    // 사용자가 특정 학교에 속하는지 확인
+    function belongsToSchool(schoolId) {
+      return isAuthenticated() && getCurrentUser().schoolId == schoolId;
+    }
+
+    // 사용자가 반의 담당 교사인지 확인
+    function isClassTeacher(schoolId, classId) {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/schools/$(schoolId)/classes/$(classId)).data.teacherId == request.auth.uid;
+    }
+
+    // 사용자가 해당 반의 학생인지 확인
+    function isStudentInClass(schoolId, classId, studentId) {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/schools/$(schoolId)/classes/$(classId)/students/$(studentId)).data.userId == request.auth.uid;
+    }
+
+    // 관리자 또는 교사인지 확인
+    function isTeacherOrAdmin() {
+      return isAuthenticated() && (getCurrentUser().role == 'teacher' || getCurrentUser().role == 'admin');
+    }
+
+    // ==================== Users Collection ====================
+
+    match /users/{userId} {
+      // 자신의 정보는 읽기 가능, 관리자는 모든 사용자 읽기 가능
+      allow read: if isAuthenticated() &&
+                     (request.auth.uid == userId || hasRole('admin'));
+
+      // 자신의 정보만 수정 가능
+      allow update: if isAuthenticated() && request.auth.uid == userId &&
+                      !request.resource.data.keys().hasAny(['role', 'schoolId', 'uid']);
+
+      // 새 사용자 생성 제한 (회원가입)
+      allow create: if isAuthenticated() == false; // 회원가입 시에만
+
+      // 삭제는 관리자만
+      allow delete: if hasRole('admin');
+    }
+
+    // ==================== Schools Collection ====================
+
+    match /schools/{schoolId} {
+      // 같은 학교의 사용자만 읽기 가능
+      allow read: if isAuthenticated() && belongsToSchool(schoolId);
+
+      // 관리자만 생성/수정/삭제 가능
+      allow create, update, delete: if hasRole('admin');
+
+      // ========== Classes Subcollection ==========
+
+      match /classes/{classId} {
+        // 같은 학교의 사용자는 읽기 가능
+        allow read: if isAuthenticated() && belongsToSchool(schoolId);
+
+        // 담당 교사 또는 관리자는 수정 가능
+        allow update: if isAuthenticated() && belongsToSchool(schoolId) &&
+                        (isClassTeacher(schoolId, classId) || hasRole('admin'));
+
+        // 교사 또는 관리자는 생성 가능
+        allow create: if isAuthenticated() && belongsToSchool(schoolId) && isTeacherOrAdmin();
+
+        // 담당 교사 또는 관리자는 삭제 가능
+        allow delete: if isAuthenticated() && belongsToSchool(schoolId) &&
+                        (isClassTeacher(schoolId, classId) || hasRole('admin'));
+
+        // ========== TimeSlots Subcollection ==========
+
+        match /timeslots/{slotId} {
+          // 같은 학교의 사용자는 읽기 가능
+          allow read: if isAuthenticated() && belongsToSchool(schoolId);
+
+          // 담당 교사만 수정/삭제 가능
+          allow update, delete: if isAuthenticated() && belongsToSchool(schoolId) &&
+                                   isClassTeacher(schoolId, classId);
+
+          // 담당 교사만 생성 가능
+          allow create: if isAuthenticated() && belongsToSchool(schoolId) &&
+                           isClassTeacher(schoolId, classId);
+        }
+
+        // ========== Students Subcollection ==========
+
+        match /students/{studentId} {
+          // 같은 학교의 사용자는 읽기 가능
+          allow read: if isAuthenticated() && belongsToSchool(schoolId);
+
+          // 담당 교사는 수정 가능
+          allow update: if isAuthenticated() && belongsToSchool(schoolId) &&
+                           isClassTeacher(schoolId, classId);
+
+          // 담당 교사만 생성/삭제 가능
+          allow create, delete: if isAuthenticated() && belongsToSchool(schoolId) &&
+                                   isClassTeacher(schoolId, classId);
+        }
+
+        // ========== Attendances Subcollection (날짜별 분할) ==========
+
+        match /attendances/{date=**} {
+          // 같은 학교의 사용자는 읽기 가능
+          allow read: if isAuthenticated() && belongsToSchool(schoolId);
+
+          // 담당 교사만 생성/수정/삭제 가능
+          allow create, update, delete: if isAuthenticated() && belongsToSchool(schoolId) &&
+                                           isClassTeacher(schoolId, classId);
+        }
+
+        // ========== AttendanceStats Subcollection ==========
+
+        match /attendanceStats/{studentId} {
+          // 같은 학교의 사용자는 읽기 가능
+          // 학생은 자신의 통계만 읽기 가능
+          allow read: if isAuthenticated() && belongsToSchool(schoolId) &&
+                        (getCurrentUser().role != 'student' || isStudentInClass(schoolId, classId, studentId));
+
+          // 서버 함수만 수정 가능 (클라이언트 쓰기 금지)
+          allow write: if false;
+        }
+      }
+    }
+
+    // ==================== Catch-All (기본 거부) ====================
+
+    // 명시적으로 허용하지 않은 모든 문서는 접근 불가
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
