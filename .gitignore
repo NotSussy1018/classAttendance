@@ -11,7 +11,7 @@ package-lock.json
 # Build outputs
 dist/
 build/
-lib/
+/lib/
 .next/
 
 # IDE and editor files
